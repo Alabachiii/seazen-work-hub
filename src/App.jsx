@@ -5,7 +5,7 @@ import {
   Plus, Pencil, Trash2, CheckCircle2, RotateCcw, Download, Upload, Filter, X,
   ChevronLeft, ChevronRight, Menu, Database, Search, ArrowUpDown, Inbox, ExternalLink, Clock,
   Sun, Moon, Share2, Image as ImageIcon, Link2, Maximize2, MessageSquare, BookOpen, Sparkles,
-  Coffee, Cookie, Beef, Flame, Utensils, CupSoda,
+  Coffee, Cookie, Beef, Flame, Utensils, CupSoda, GripVertical,
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import Papa from "papaparse";
@@ -213,6 +213,7 @@ const THEME_KEY = "seazen_theme";
 const IDEAMAP_KEY = "seazen_ideamap";
 const TRENDS_KEY = "seazen_trends";
 const INSPO_KEY = "seazen_inspo";
+const NAV_ORDER_KEY = "seazen_nav_order";
 const SEED_TRENDS = [
   { title: "Smash burgers everywhere", tag: "Format", blurb: "Thin patties with crisp browned edges are one of the most ordered items this year. A strong fit for a burger menu and a reliable seller on delivery.", source: "National Restaurant Association", url: "https://restaurant.org/education-and-resources/resource-library/what%E2%80%99s-hot-in-2026-comfort-health-and-value/", keyword: "smashburger,cheeseburger", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/Cheeseburger.jpg/640px-Cheeseburger.jpg" },
   { title: "Dubai chocolate", tag: "Dessert", blurb: "Pistachio and kunafa filled chocolate keeps pulling crowds across the Gulf. A ready made limited time dessert or add on for the cafes.", source: "National Restaurant Association", url: "https://restaurant.org/education-and-resources/resource-library/what%E2%80%99s-hot-in-2026-comfort-health-and-value/", keyword: "chocolate,pistachio,dessert", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/Dubai_chocolate_on_a_plate_01.jpg/640px-Dubai_chocolate_on_a_plate_01.jpg" },
@@ -221,6 +222,35 @@ const SEED_TRENDS = [
   { title: "Birria and the dip taco", tag: "Global", blurb: "Slow cooked beef birria and the dip style taco went global through social video. A bold limited run idea that films well.", source: "Datassential", url: "https://datassential.com/resource/new-classics-2026-food-beverage-trends/", keyword: "tacos,beef", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/Taco_de_birria.jpg/640px-Taco_de_birria.jpg" },
   { title: "Texture led drinks", tag: "Texture", blurb: "Drinks with boba, jelly, and foam win because texture makes them fun to share. A simple way to add a signature non alcoholic drink.", source: "Datassential", url: "https://datassential.com/resource/new-classics-2026-food-beverage-trends/", keyword: "bubbletea,boba", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/Popping_boba_w_Bubble_Tea.jpg/640px-Popping_boba_w_Bubble_Tea.jpg" },
 ];
+
+// Ask our own endpoint for the article's preview image. Falls back to a
+// keyword photo, then the code shows a clean colored tile if nothing loads.
+async function ogImage(url) {
+  try {
+    const r = await fetch(`/api/preview?url=${encodeURIComponent(url)}`);
+    if (!r.ok) return null;
+    const j = await r.json();
+    return j && j.image ? j.image : null;
+  } catch {
+    return null;
+  }
+}
+async function resolveTrendImages(list) {
+  return Promise.all(
+    (list || []).map(async (t) => {
+      let image = "";
+      if (t.url) {
+        const og = await ogImage(t.url);
+        if (og) image = og;
+      }
+      if (!image && t.keyword) {
+        image = `https://loremflickr.com/640/420/${String(t.keyword).replace(/\s+/g, "")}`;
+      }
+      return { ...t, image };
+    })
+  );
+}
+
 const MIG_OKRA = "seazen_mig_okra";
 const Q3_SEED = [{"date":"2026-07-01","brand":"Trapani","title":"[QAT] New menu full experience campaign with drinks (Vendome Mall)","eventType":"Campaign","category":"Campaign","priority":"Medium","status":"Not Started","notes":"Trapani Qatar. Remark: not the right time for a new menu launch; move campaign to September. Prepare a summer activation plan for mid-July to August."},{"date":"2026-08-01","brand":"Trapani","title":"[QAT] Brand collab (TBC), delivery focus","eventType":"Campaign","category":"Campaign","priority":"Medium","status":"Not Started","notes":"Trapani Qatar."},{"date":"2026-09-01","brand":"Trapani","title":"[QAT] New menu launch campaign (Mshreib) + delivery activities","eventType":"Campaign","category":"Campaign","priority":"Medium","status":"Not Started","notes":"Trapani Qatar. Runs September into October."},{"date":"2026-06-01","brand":"Melenzane","title":"[UAE] Forno thin crust pizza experience + home delivery","eventType":"Campaign","category":"Campaign","priority":"Medium","status":"Not Started","notes":"Melenzane UAE. Runs June into July. Prepare a full campaign presentation for MND approval. Obtain approval for monthly delivery activities (CPC, rankings, banners, with targets). Coordinate with aggregators on best-selling ideas and opportunities."},{"date":"2026-08-01","brand":"Melenzane","title":"[UAE] Home delivery activities","eventType":"Campaign","category":"Campaign","priority":"Medium","status":"Not Started","notes":"Melenzane UAE."},{"date":"2026-09-01","brand":"Melenzane","title":"[UAE] New menu campaign + Dubai events participation + delivery","eventType":"Campaign","category":"Campaign","priority":"Medium","status":"Not Started","notes":"Melenzane UAE. Runs September into October."},{"date":"2026-06-01","brand":"Melenzane","title":"[OMN] Forno thin crust pizza experience + home delivery","eventType":"Campaign","category":"Campaign","priority":"Medium","status":"Not Started","notes":"Melenzane Oman. Runs June into July. Prepare a full campaign presentation for MND approval. Obtain approval for monthly delivery activities (CPC, rankings, banners, with targets). Coordinate with aggregators on best-selling ideas and opportunities."},{"date":"2026-08-01","brand":"Melenzane","title":"[OMN] Home delivery activities","eventType":"Campaign","category":"Campaign","priority":"Medium","status":"Not Started","notes":"Melenzane Oman."},{"date":"2026-09-01","brand":"Melenzane","title":"[OMN] New menu campaign + delivery activities","eventType":"Campaign","category":"Campaign","priority":"Medium","status":"Not Started","notes":"Melenzane Oman. Runs September into October."},{"date":"2026-06-01","brand":"Melenzane","title":"[BAH] Forno thin crust pizza experience + home delivery","eventType":"Campaign","category":"Campaign","priority":"Medium","status":"Not Started","notes":"Melenzane Bahrain. Runs June into July. Prepare a full campaign presentation for MND approval. Obtain approval for monthly delivery activities (CPC, rankings, banners, with targets). Coordinate with aggregators on best-selling ideas and opportunities."},{"date":"2026-08-01","brand":"Melenzane","title":"[BAH] Home delivery activities","eventType":"Campaign","category":"Campaign","priority":"Medium","status":"Not Started","notes":"Melenzane Bahrain."},{"date":"2026-09-01","brand":"Melenzane","title":"[BAH] New menu campaign + delivery activities","eventType":"Campaign","category":"Campaign","priority":"Medium","status":"Not Started","notes":"Melenzane Bahrain. Runs September into October."},{"date":"2026-06-01","brand":"Melenzane","title":"[QAT] Forno thin crust pizza experience + home delivery","eventType":"Campaign","category":"Campaign","priority":"Medium","status":"Not Started","notes":"Melenzane Qatar. Runs June into July. Prepare a full campaign presentation for MND approval. Obtain approval for monthly delivery activities (CPC, rankings, banners, with targets). Coordinate with aggregators on best-selling ideas and opportunities."},{"date":"2026-08-01","brand":"Melenzane","title":"[QAT] Home delivery activities","eventType":"Campaign","category":"Campaign","priority":"Medium","status":"Not Started","notes":"Melenzane Qatar."},{"date":"2026-09-01","brand":"Melenzane","title":"[QAT] New menu campaign: MZ experience, cart in the mall + delivery","eventType":"Campaign","category":"Campaign","priority":"Medium","status":"Not Started","notes":"Melenzane Qatar. Runs September into October."},{"date":"2026-07-01","brand":"Secco","title":"[BAH] Takeaway/pickup focus + summer dessert/gelato launch + delivery","eventType":"Campaign","category":"Campaign","priority":"Medium","status":"Not Started","notes":"Secco Bahrain. Runs July into August. Focus on takeaway activation (arch and storefront/window branding). Prepare a full activation plan and a summer campaign with a new summer dessert offering."},{"date":"2026-09-01","brand":"Secco","title":"[BAH] Delivery activities","eventType":"Campaign","category":"Campaign","priority":"Medium","status":"Not Started","notes":"Secco Bahrain."},{"date":"2026-10-01","brand":"Secco","title":"[BAH] New menu campaign + delivery activities","eventType":"Campaign","category":"Campaign","priority":"Medium","status":"Not Started","notes":"Secco Bahrain."},{"date":"2026-07-01","brand":"Melenzane","title":"[KW] Forno thin crust: Avenues branch positioning content; blogger narrative (Avenues/Kout/Mutla) + home delivery","eventType":"Campaign","category":"Campaign","priority":"Medium","status":"Not Started","notes":"Melenzane Kuwait."},{"date":"2026-08-01","brand":"Melenzane","title":"[KW] Delivery: Ciabatta","eventType":"Campaign","category":"Campaign","priority":"Medium","status":"Not Started","notes":"Melenzane Kuwait."},{"date":"2026-09-01","brand":"Melenzane","title":"[KW] Facelift","eventType":"Campaign","category":"Campaign","priority":"Medium","status":"Not Started","notes":"Melenzane Kuwait."},{"date":"2026-07-01","brand":"The Grove","title":"[KW] Awareness campaign","eventType":"Campaign","category":"Campaign","priority":"Medium","status":"Not Started","notes":"The Grove Kuwait."},{"date":"2026-08-01","brand":"The Grove","title":"[KW] Delivery collab with healthy brand","eventType":"Campaign","category":"Campaign","priority":"Medium","status":"Not Started","notes":"The Grove Kuwait."},{"date":"2026-10-01","brand":"The Grove","title":"[KW] Campaign: Le Pecan delivery","eventType":"Campaign","category":"Campaign","priority":"Medium","status":"Not Started","notes":"The Grove Kuwait."},{"date":"2026-07-01","brand":"The Social Table","title":"[KW] Matcha but protein campaign, home delivery focus + catering","eventType":"Campaign","category":"Campaign","priority":"Medium","status":"Not Started","notes":"The Social Table Kuwait."},{"date":"2026-08-01","brand":"The Social Table","title":"[KW] Glasshouse: catering + home delivery","eventType":"Campaign","category":"Campaign","priority":"Medium","status":"Not Started","notes":"The Social Table Kuwait."},{"date":"2026-07-01","brand":"Secco","title":"[KW] Summer ice cream campaign","eventType":"Campaign","category":"Campaign","priority":"Medium","status":"Not Started","notes":"Secco Kuwait. Runs July into August."},{"date":"2026-07-01","brand":"Trapani","title":"[KW] Assima: La Dolce Sip new strategy","eventType":"Campaign","category":"Campaign","priority":"Medium","status":"Not Started","notes":"Trapani Kuwait."},{"date":"2026-08-01","brand":"Trapani","title":"[KW] La Dolce Sip: Avenues","eventType":"Campaign","category":"Campaign","priority":"Medium","status":"Not Started","notes":"Trapani Kuwait."},{"date":"2026-09-01","brand":"Trapani","title":"[KW] La Dolce Sip: Muruj","eventType":"Campaign","category":"Campaign","priority":"Medium","status":"Not Started","notes":"Trapani Kuwait."},{"date":"2026-07-01","brand":"Masgouf","title":"[KW] Chef Aziz breakfast menu collab (all branches) + summer catering","eventType":"Campaign","category":"Campaign","priority":"Medium","status":"Not Started","notes":"Masgouf Kuwait."},{"date":"2026-08-01","brand":"Masgouf","title":"[KW] Chef Aziz lunch menu collab (all branches)","eventType":"Campaign","category":"Campaign","priority":"Medium","status":"Not Started","notes":"Masgouf Kuwait."},{"date":"2026-07-01","brand":"Cafeteria Al Dhahiya","title":"[KW] Summer catering + delivery","eventType":"Campaign","category":"Campaign","priority":"Medium","status":"Not Started","notes":"Cafeteria Al Dhahiya Kuwait."},{"date":"2026-08-01","brand":"Cafeteria Al Dhahiya","title":"[KW] Delivery + catering","eventType":"Campaign","category":"Campaign","priority":"Medium","status":"Not Started","notes":"Cafeteria Al Dhahiya Kuwait."},{"date":"2026-07-01","brand":"Okra","title":"[KW] Okra experience campaign (modern Arabic theme) + delivery","eventType":"Campaign","category":"Campaign","priority":"Medium","status":"Not Started","notes":"Okra Kuwait."},{"date":"2026-07-01","brand":"Meat at Tony's","title":"[KW] Elamigos collab + Talabat exclusivity","eventType":"Campaign","category":"Campaign","priority":"Medium","status":"Not Started","notes":"Meat at Tony's Kuwait. Runs July into August."},{"date":"2026-09-01","brand":"Meat at Tony's","title":"[KW] Bus activation","eventType":"Campaign","category":"Campaign","priority":"Medium","status":"Not Started","notes":"Meat at Tony's Kuwait."}];
 
@@ -1490,7 +1520,7 @@ function Home({ data, settings, go, saveTrends, saveInspo }) {
   if (!briefing.length) briefing.push({ tone: "good", section: null, text: "No overdue items and nothing due this week. Log work, ideas, or events to start tracking." });
 
   // ---- trending F&B board ----
-  const savedFresh = (data.trends && data.trends.v === 2 && Array.isArray(data.trends.items) && data.trends.items.length) ? data.trends.items : null;
+  const savedFresh = (data.trends && data.trends.v === 3 && Array.isArray(data.trends.items) && data.trends.items.length) ? data.trends.items : null;
   const [mix, setMix] = useState(() => savedFresh || SEED_TRENDS);
   const [loadingTrends, setLoadingTrends] = useState(false);
   const [trendNote, setTrendNote] = useState(null);
@@ -1500,7 +1530,7 @@ function Home({ data, settings, go, saveTrends, saveInspo }) {
   const TREND_PALETTE = ["#059669", "#0891b2", "#7c3aed", "#d97706", "#db2777", "#ea580c", "#0d9488", "#4f46e5"];
 
   useEffect(() => {
-    if (data.trends && data.trends.v === 2 && Array.isArray(data.trends.items) && data.trends.items.length) setMix(data.trends.items);
+    if (data.trends && data.trends.v === 3 && Array.isArray(data.trends.items) && data.trends.items.length) setMix(data.trends.items);
   }, [data.trends]);
 
   const refreshTrends = async () => {
@@ -1523,10 +1553,12 @@ function Home({ data, settings, go, saveTrends, saveInspo }) {
       const raw = (data2.content || []).filter((b) => b.type === "text").map((b) => b.text || "").join("").trim();
       const a = raw.indexOf("["), z = raw.lastIndexOf("]");
       if (a < 0 || z < 0) throw new Error("parse");
-      const items = JSON.parse(raw.slice(a, z + 1)).slice(0, 6).map((t) => ({ ...t, image: t.keyword ? `https://loremflickr.com/640/420/${String(t.keyword).replace(/\s+/g, "")}` : "" }));
-      if (!items.length) throw new Error("empty");
+      const parsed = JSON.parse(raw.slice(a, z + 1)).slice(0, 6);
+      if (!parsed.length) throw new Error("empty");
+      const items = await resolveTrendImages(parsed);
+      liveDone.current = true;
       setMix(items);
-      saveTrends({ items, v: 2, updatedAt: Date.now() });
+      saveTrends({ items, v: 3, updatedAt: Date.now() });
       setTrendNote({ ok: true, text: "Pulled a fresh set from the web." });
     } catch (err) {
       setTrendNote({ ok: false, text: "Could not reach the web just now. Showing the last set. Try again in a moment." });
@@ -1535,11 +1567,16 @@ function Home({ data, settings, go, saveTrends, saveInspo }) {
   };
 
   const didAuto = useRef(false);
+  const liveDone = useRef(false);
   useEffect(() => {
     if (didAuto.current) return;
     didAuto.current = true;
-    const fresh = data.trends && data.trends.v === 2 && Array.isArray(data.trends.items) && data.trends.items.length && (Date.now() - (data.trends.updatedAt || 0) < 21600000);
-    if (!fresh) refreshTrends();
+    const fresh = data.trends && data.trends.v === 3 && Array.isArray(data.trends.items) && data.trends.items.length && (Date.now() - (data.trends.updatedAt || 0) < 21600000);
+    if (fresh) return;
+    // Show real article photos on the starter set right away, even if the
+    // live web search is slow or unavailable. Live results override this.
+    resolveTrendImages(SEED_TRENDS).then((withImg) => { if (!liveDone.current) setMix(withImg); });
+    refreshTrends();
   }, []);
 
   const featured = mix[0];
@@ -2818,6 +2855,8 @@ export default function App() {
   const [confirmState, setConfirmState] = useState(null);
   const [dark, setDark] = useState(false);
   const [now, setNow] = useState(new Date());
+  const [navOrder, setNavOrder] = useState(() => NAV.map((n) => n.id));
+  const dragNav = useRef(null);
   const backupRef = useRef(null);
 
   const toast = (m) => { setToastMsg(m); setTimeout(() => setToastMsg(null), 1800); };
@@ -2838,6 +2877,12 @@ export default function App() {
       next.trends = await loadKey(TRENDS_KEY, { items: [], updatedAt: 0 });
       next.inspo = await loadKey(INSPO_KEY, []);
       const themeDark = await loadKey(THEME_KEY, false);
+      const savedOrder = await loadKey(NAV_ORDER_KEY, null);
+      if (Array.isArray(savedOrder) && savedOrder.length) {
+        const valid = savedOrder.filter((id) => NAV.some((n) => n.id === id));
+        const merged = [...valid, ...NAV.filter((n) => !valid.includes(n.id)).map((n) => n.id)];
+        setNavOrder(merged);
+      }
       // seed brand hub on first run
       if ((next.brandHub || []).length === 0) {
         next.brandHub = settingsVal.brands.map((b) => ({ id: uid(), brand: b, status: "Active", createdDate: todayKey(), updatedDate: todayKey(), deleted: false }));
@@ -2946,9 +2991,28 @@ export default function App() {
     </div>
   );
 
+  const orderedNav = [
+    ...navOrder.map((id) => NAV.find((n) => n.id === id)).filter(Boolean),
+    ...NAV.filter((n) => !navOrder.includes(n.id)),
+  ];
+  const reorderNav = (fromId, toId) => {
+    if (!fromId || fromId === toId) return;
+    const ids = orderedNav.map((n) => n.id);
+    const from = ids.indexOf(fromId), to = ids.indexOf(toId);
+    if (from < 0 || to < 0) return;
+    ids.splice(to, 0, ids.splice(from, 1)[0]);
+    setNavOrder(ids);
+    saveKey(NAV_ORDER_KEY, ids);
+  };
+
   const navItem = (n) => (
-    <button key={n.id} onClick={() => { setSection(n.id); setSidebarOpen(false); }}
-      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${section === n.id ? "bg-emerald-50 text-emerald-700" : "text-gray-600 hover:bg-gray-100"}`}>
+    <button key={n.id} draggable
+      onDragStart={(e) => { dragNav.current = n.id; e.dataTransfer.effectAllowed = "move"; }}
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={(e) => { e.preventDefault(); reorderNav(dragNav.current, n.id); dragNav.current = null; }}
+      onClick={() => { setSection(n.id); setSidebarOpen(false); }}
+      className={`group w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${section === n.id ? "bg-emerald-50 text-emerald-700" : "text-gray-600 hover:bg-gray-100"}`}>
+      <GripVertical size={13} className="text-gray-300 shrink-0 cursor-grab opacity-0 group-hover:opacity-100 transition-opacity" />
       <n.icon size={17} className={section === n.id ? "text-emerald-600" : "text-gray-400"} />{n.label}
     </button>
   );
@@ -2961,7 +3025,7 @@ export default function App() {
           <div><div className="font-semibold text-gray-900 text-sm leading-tight">Seazen Work Hub</div><div className="text-[11px] text-gray-400">Suleman Alhabashi</div></div>
         </div>
       </div>
-      <nav className="flex-1 overflow-y-auto p-2.5 space-y-0.5">{NAV.map(navItem)}</nav>
+      <nav className="flex-1 overflow-y-auto p-2.5 space-y-0.5">{orderedNav.map(navItem)}</nav>
       <div className="p-2.5 border-t border-gray-100 space-y-1">
         <button onClick={exportEverything} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100"><Download size={16} className="text-gray-400" />Export all (Excel)</button>
         <button onClick={backup} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100"><Database size={16} className="text-gray-400" />Backup data</button>
