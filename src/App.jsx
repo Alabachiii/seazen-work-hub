@@ -5,7 +5,7 @@ import {
   Plus, Pencil, Trash2, CheckCircle2, RotateCcw, Download, Upload, Filter, X,
   ChevronLeft, ChevronRight, Menu, Database, Search, ArrowUpDown, Inbox, ExternalLink, Clock,
   Sun, Moon, Share2, Image as ImageIcon, Link2, Maximize2, MessageSquare, BookOpen, Sparkles,
-  Coffee, Cookie, Beef, Flame, Utensils, CupSoda, GripVertical,
+  Coffee, Cookie, Beef, Flame, Utensils, CupSoda, ChevronUp, ChevronDown,
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import Papa from "papaparse";
@@ -223,31 +223,24 @@ const SEED_TRENDS = [
   { title: "Texture led drinks", tag: "Texture", blurb: "Drinks with boba, jelly, and foam win because texture makes them fun to share. A simple way to add a signature non alcoholic drink.", source: "Datassential", url: "https://datassential.com/resource/new-classics-2026-food-beverage-trends/", keyword: "bubbletea,boba", image: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/Popping_boba_w_Bubble_Tea.jpg/640px-Popping_boba_w_Bubble_Tea.jpg" },
 ];
 
-// Ask our own endpoint for the article's preview image. Falls back to a
-// keyword photo, then the code shows a clean colored tile if nothing loads.
-async function ogImage(url) {
+// Ask our own endpoint for a real image: the article's own photo first, then
+// a relevance-ranked stock photo, else empty so the card shows a clean tile.
+async function trendImage(url, keyword) {
   try {
-    const r = await fetch(`/api/preview?url=${encodeURIComponent(url)}`);
-    if (!r.ok) return null;
+    const qs = new URLSearchParams();
+    if (url) qs.set("url", url);
+    if (keyword) qs.set("q", keyword);
+    const r = await fetch(`/api/preview?${qs.toString()}`);
+    if (!r.ok) return "";
     const j = await r.json();
-    return j && j.image ? j.image : null;
+    return j && j.image ? j.image : "";
   } catch {
-    return null;
+    return "";
   }
 }
 async function resolveTrendImages(list) {
   return Promise.all(
-    (list || []).map(async (t) => {
-      let image = "";
-      if (t.url) {
-        const og = await ogImage(t.url);
-        if (og) image = og;
-      }
-      if (!image && t.keyword) {
-        image = `https://loremflickr.com/640/420/${String(t.keyword).replace(/\s+/g, "")}`;
-      }
-      return { ...t, image };
-    })
+    (list || []).map(async (t) => ({ ...t, image: await trendImage(t.url, t.keyword) }))
   );
 }
 
@@ -1544,7 +1537,7 @@ function Home({ data, settings, go, saveTrends, saveInspo }) {
           tools: [{ type: "web_search_20250305", name: "web_search" }],
           messages: [{
             role: "user",
-            content: "Search the web for the newest food and beverage trends spiking right now this season, the specific items, flavors, drinks, or formats people are talking about on social media and in restaurants in the last few months. Be specific and name actual things, not broad evergreen themes. Do not include generic categories such as comfort food, health and wellness, sustainability, value, or protein. Pick 6 fresh, specific ones. For each return: title (the specific trend, short and punchy), tag (one short word like Flavor, Dessert, Drink, Format, Snack, Viral), blurb (one plain sentence on why it matters for a multi brand restaurant group, no fluff), source (the publication name), url (the article link), keyword (two lowercase words comma separated no spaces describing the food for a photo). HARD RULES: no alcohol, beer, wine, cocktails, bars, or pork, bacon, ham anywhere. No em dashes. Reply with ONLY a JSON array of 6 objects with keys title, tag, blurb, source, url, keyword. No other text.",
+            content: "Search the web for what is trending in restaurant food right now this season, leaning toward dishes and formats a full service and delivery restaurant group would actually put on a menu: smash burgers and burgers, grilled meats and kebabs, pizza and pasta, sandwiches and wraps, loaded fries and shareable plates, rice and grain bowls, mezze and dips, plus a few standout desserts and at most a couple of drinks. This group runs a steakhouse, an Italian trattoria, a thin crust pizza concept, an Iraqi grill, a modern Arabic restaurant, and cafes across Kuwait and the Gulf. Pick 6 specific trends that fit those kinds of menus and that people are actually talking about in the last few months. At most 2 of the 6 can be drinks. At least 3 must be real food dishes, not flavors or drinks. Name actual specific things, not broad themes like comfort food or value. For each return: title (the specific trend, short and punchy), tag (one short word: Burger, Grill, Pizza, Pasta, Sandwich, Dessert, Drink, Flavor, Format, Viral), blurb (one plain sentence on why it fits a multi brand restaurant group, no fluff), source (the publication name), url (the article link), keyword (two lowercase words comma separated no spaces naming the actual dish for a photo, for example smashburger,fries). HARD RULES: no alcohol, beer, wine, cocktails, bars, and no pork, bacon, ham anywhere. No em dashes. Reply with ONLY a JSON array of 6 objects with keys title, tag, blurb, source, url, keyword. No other text.",
           }],
         }),
       });
@@ -2856,7 +2849,7 @@ export default function App() {
   const [dark, setDark] = useState(false);
   const [now, setNow] = useState(new Date());
   const [navOrder, setNavOrder] = useState(() => NAV.map((n) => n.id));
-  const dragNav = useRef(null);
+  const [reorderMode, setReorderMode] = useState(false);
   const backupRef = useRef(null);
 
   const toast = (m) => { setToastMsg(m); setTimeout(() => setToastMsg(null), 1800); };
@@ -2995,26 +2988,33 @@ export default function App() {
     ...navOrder.map((id) => NAV.find((n) => n.id === id)).filter(Boolean),
     ...NAV.filter((n) => !navOrder.includes(n.id)),
   ];
-  const reorderNav = (fromId, toId) => {
-    if (!fromId || fromId === toId) return;
+  const moveNav = (id, dir) => {
     const ids = orderedNav.map((n) => n.id);
-    const from = ids.indexOf(fromId), to = ids.indexOf(toId);
-    if (from < 0 || to < 0) return;
-    ids.splice(to, 0, ids.splice(from, 1)[0]);
+    const idx = ids.indexOf(id);
+    const j = idx + dir;
+    if (idx < 0 || j < 0 || j >= ids.length) return;
+    [ids[idx], ids[j]] = [ids[j], ids[idx]];
     setNavOrder(ids);
     saveKey(NAV_ORDER_KEY, ids);
   };
 
-  const navItem = (n) => (
-    <button key={n.id} draggable
-      onDragStart={(e) => { dragNav.current = n.id; e.dataTransfer.effectAllowed = "move"; }}
-      onDragOver={(e) => e.preventDefault()}
-      onDrop={(e) => { e.preventDefault(); reorderNav(dragNav.current, n.id); dragNav.current = null; }}
-      onClick={() => { setSection(n.id); setSidebarOpen(false); }}
-      className={`group w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${section === n.id ? "bg-emerald-50 text-emerald-700" : "text-gray-600 hover:bg-gray-100"}`}>
-      <GripVertical size={13} className="text-gray-300 shrink-0 cursor-grab opacity-0 group-hover:opacity-100 transition-opacity" />
-      <n.icon size={17} className={section === n.id ? "text-emerald-600" : "text-gray-400"} />{n.label}
-    </button>
+  const navItem = (n, i, arr) => (
+    <div key={n.id}
+      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${section === n.id ? "bg-emerald-50 text-emerald-700" : "text-gray-600 hover:bg-gray-100"}`}>
+      <button onClick={() => { if (!reorderMode) { setSection(n.id); setSidebarOpen(false); } }}
+        className="flex items-center gap-2.5 flex-1 min-w-0 text-left">
+        <n.icon size={17} className={`shrink-0 ${section === n.id ? "text-emerald-600" : "text-gray-400"}`} />
+        <span className="truncate">{n.label}</span>
+      </button>
+      {reorderMode && (
+        <span className="flex items-center gap-0.5 shrink-0">
+          <button onClick={() => moveNav(n.id, -1)} disabled={i === 0}
+            className="p-1 rounded hover:bg-gray-200 text-gray-500 disabled:opacity-25 disabled:hover:bg-transparent"><ChevronUp size={15} /></button>
+          <button onClick={() => moveNav(n.id, 1)} disabled={i === arr.length - 1}
+            className="p-1 rounded hover:bg-gray-200 text-gray-500 disabled:opacity-25 disabled:hover:bg-transparent"><ChevronDown size={15} /></button>
+        </span>
+      )}
+    </div>
   );
 
   const Sidebar = (
@@ -3025,7 +3025,16 @@ export default function App() {
           <div><div className="font-semibold text-gray-900 text-sm leading-tight">Seazen Work Hub</div><div className="text-[11px] text-gray-400">Suleman Alhabashi</div></div>
         </div>
       </div>
-      <nav className="flex-1 overflow-y-auto p-2.5 space-y-0.5">{orderedNav.map(navItem)}</nav>
+      <nav className="flex-1 overflow-y-auto p-2.5 space-y-0.5">
+        <div className="flex items-center justify-between px-3 pt-1 pb-1.5">
+          <span className="text-[11px] uppercase tracking-wide text-gray-400">Sections</span>
+          <button onClick={() => setReorderMode((m) => !m)}
+            className={`text-[11px] font-medium ${reorderMode ? "text-emerald-700" : "text-gray-400 hover:text-emerald-600"}`}>
+            {reorderMode ? "Done" : "Reorder"}
+          </button>
+        </div>
+        {orderedNav.map((n, i) => navItem(n, i, orderedNav))}
+      </nav>
       <div className="p-2.5 border-t border-gray-100 space-y-1">
         <button onClick={exportEverything} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100"><Download size={16} className="text-gray-400" />Export all (Excel)</button>
         <button onClick={backup} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100"><Database size={16} className="text-gray-400" />Backup data</button>
